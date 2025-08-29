@@ -3,34 +3,37 @@ import RadialTextChart from "./components/CircularTextRing";
 import play from "./data/midsummer-text.json";
 
 function getData(playObj) {
+  const out = [];
 
-  let usableLines = [];
+  const act = playObj["1"]; // only Act 1
+  if (!act) return out;
 
-  for (const actKey of Object.keys(playObj)) {
-    const act = playObj[actKey];
+  for (const sceneKey of Object.keys(act).sort((a, b) => +a - +b)) {
+    const scene = act[sceneKey];
+    if (!scene) continue;
 
-    if (actKey !== "1") continue; // only act 1
+    for (const lineKey of Object.keys(scene).sort((a, b) => +a - +b)) {
+      const entry = scene[lineKey];
 
-    for (const sceneKey of Object.keys(act)) {
-      const scene = act[sceneKey];
-
-      for (const lineKey of Object.keys(scene)) {
-        const line = scene[lineKey];
-
-        if (typeof line === "object") {
-          console.log(line.speaker, ":", line.line);
-          usableLines.push(line.line);
-        }
+      // spoken line objects look like: { speaker: "THESEUS.", line: "..." }
+      if (entry && typeof entry === "object" && "line" in entry) {
+        const character = (entry.speaker || "").trim();
+        const text = (entry.line || "").trim();
+        if (text) out.push({ character, line: text });
       }
+      // strings (stage directions) are ignored
     }
   }
+
+  return out;
 }
+
 
 
 
 export default function App() {
   
-  getData(play)
+  const stuff = getData(play)
 
   const data = [
     " Now, fair Hippolyta, our nuptial hour ",
@@ -470,7 +473,7 @@ export default function App() {
   return (
     <div>
       <RadialTextChart 
-      data={data} 
+      data={stuff} 
       width={1000} 
       height={1000} 
       centerText="I"

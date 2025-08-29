@@ -9,7 +9,6 @@ for (const actKey of Object.keys(play)) {
 
     if (actKey !== '1') continue;
 
-
     for (const sceneKey of Object.keys(act)) {
         const scene = act[sceneKey];
 
