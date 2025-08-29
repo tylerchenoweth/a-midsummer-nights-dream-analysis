@@ -472,12 +472,16 @@ export default function App() {
 
   return (
     <div>
-      <RadialTextChart 
-      data={stuff} 
-      width={1000} 
-      height={1000} 
-      centerText="I"
-      />
+      <RadialTextChart
+  data={stuff}
+  width={800}
+  height={800}
+  centerText="Act I"
+  showLegend={true}
+  legendX={20}
+  legendY={80}   // ⬅️ push the legend lower
+/>
+
       
     </div>
   );

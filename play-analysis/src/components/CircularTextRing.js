@@ -8,14 +8,34 @@ export default function RadialTextChart({
   ],
   width = 720,
   height = 720,
+
+  // layout
   centerPadding = 300,
   barThickness = 6,
+
+  // text styles (used for BOTH measuring and rendering)
   fontFamily = "Inter, system-ui, sans-serif",
   fontSize = 6,
+  fontWeight = 400,
+  letterSpacing = 0, // px
+
+  // label padding
+  labelPadLeft = 4,
+  labelPadRight = 8,
+
+  // polar
   angleOffset = -90,
   keepTextUpright = false,
   sort = null,
   centerText = null,
+
+  // legend
+  showLegend = true,
+  legendX = 12,
+  legendY = 12,
+  legendItemHeight = 18,
+  legendSwatchSize = 12,
+  legendGap = 8,
 }) {
   const svgRef = useRef(null);
   const chartRef = useRef(null);
@@ -34,7 +54,7 @@ export default function RadialTextChart({
     []
   );
 
-  // Normalize input to {id, label, meta.character}
+  // Normalize input to {id, label(line), meta.character}
   const prepared = useMemo(() => {
     const normalized = (data || []).map((d, i) => {
       if (typeof d === "string") return { id: i, label: d, meta: { character: "Unknown" } };
@@ -49,7 +69,13 @@ export default function RadialTextChart({
     return typeof sort === "function" ? [...normalized].sort(sort) : normalized;
   }, [data, sort]);
 
-  // Ordinal color scale: character → color
+  // Unique characters for legend
+  const characters = useMemo(
+    () => Array.from(new Set(prepared.map(d => d.meta?.character ?? "Unknown"))),
+    [prepared]
+  );
+
+  // Ordinal color scale
   const colorScale = useMemo(() => d3.scaleOrdinal(COLORS), [COLORS]);
 
   const N = prepared.length;
@@ -59,7 +85,7 @@ export default function RadialTextChart({
     return d3.range(N).map((i) => start + i * step);
   }, [N, angleOffset]);
 
-  // Measure text lengths offscreen
+  // Measure text lengths offscreen (match render styles)
   useLayoutEffect(() => {
     if (!measureLayerRef.current) return;
     const g = d3.select(measureLayerRef.current);
@@ -73,6 +99,8 @@ export default function RadialTextChart({
       .attr("y", 0)
       .style("font-family", fontFamily)
       .style("font-size", `${fontSize}px`)
+      .style("font-weight", fontWeight)
+      .style("letter-spacing", `${letterSpacing}px`)
       .text((d) => d.label);
 
     const measured = [];
@@ -80,15 +108,13 @@ export default function RadialTextChart({
       measured.push(this.getComputedTextLength());
     });
     setLengths(measured);
-  }, [prepared, fontFamily, fontSize]);
+  }, [prepared, fontFamily, fontSize, fontWeight, letterSpacing]);
 
   // Ensure a persistent chart group
   useEffect(() => {
     const svg = d3.select(svgRef.current);
     let chart = svg.select("g.chart");
-    if (chart.empty()) {
-      chart = svg.append("g").attr("class", "chart");
-    }
+    if (chart.empty()) chart = svg.append("g").attr("class", "chart");
     chartRef.current = chart.node();
   }, []);
 
@@ -109,12 +135,12 @@ export default function RadialTextChart({
 
     groups.attr("transform", (d) => `rotate(${(d.angle * 180) / Math.PI})`);
 
-    // Bars colored by character
+    // Bars — width accounts for left/right padding
     groups
       .append("rect")
       .attr("x", centerPadding)
       .attr("y", -barThickness / 2)
-      .attr("width", (d) => d.len)
+      .attr("width", (d) => Math.ceil(d.len) + labelPadLeft + labelPadRight)
       .attr("height", barThickness)
       .attr("rx", barThickness / 2)
       .attr("fill", (d) => colorScale(d.meta?.character ?? "Unknown"));
@@ -122,12 +148,14 @@ export default function RadialTextChart({
     // Line text
     const text = groups
       .append("text")
-      .attr("x", centerPadding + 2)
+      .attr("x", centerPadding + labelPadLeft)
       .attr("y", 0)
       .attr("dominant-baseline", "middle")
       .attr("text-anchor", "start")
       .style("font-family", fontFamily)
       .style("font-size", `${fontSize}px`)
+      .style("font-weight", fontWeight)
+      .style("letter-spacing", `${letterSpacing}px`)
       .style("fill", "#0f172a")
       .text((d) => d.label);
 
@@ -164,6 +192,10 @@ export default function RadialTextChart({
     centerPadding,
     fontFamily,
     fontSize,
+    fontWeight,
+    letterSpacing,
+    labelPadLeft,
+    labelPadRight,
     keepTextUpright,
     lengths,
     prepared,
@@ -198,6 +230,40 @@ export default function RadialTextChart({
     return () => svg.on(".zoom", null);
   }, [width, height]);
 
+  // --- Legend (fixed; does not zoom) ---
+  const renderLegend = () => {
+    if (!showLegend) return null;
+    return (
+      <g className="legend" transform={`translate(${legendX}, ${legendY})`}>
+        {characters.map((name, i) => {
+          const y = i * legendItemHeight;
+          return (
+            <g key={name ?? i} transform={`translate(0, ${y})`}>
+              <rect
+                x={0}
+                y={-legendSwatchSize + legendItemHeight / 2}
+                width={legendSwatchSize}
+                height={legendSwatchSize}
+                rx={2}
+                fill={colorScale(name ?? "Unknown")}
+                stroke="#000"
+                opacity={0.9}
+              />
+              <text
+                x={legendSwatchSize + legendGap}
+                y={0}
+                dominantBaseline="middle"
+                style={{ fontFamily, fontSize: 12, fill: "#0f172a" }}
+              >
+                {name}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
+
   return (
     <svg ref={svgRef} width={width} height={height}>
       {/* Offscreen measurement layer */}
@@ -206,6 +272,7 @@ export default function RadialTextChart({
         transform="translate(-1000,-1000)"
         style={{ visibility: "hidden", position: "absolute" }}
       />
+      {renderLegend()}
     </svg>
   );
 }
