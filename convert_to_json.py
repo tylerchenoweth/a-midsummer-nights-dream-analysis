@@ -23,6 +23,9 @@ with open('midsummer-text.txt', 'r') as file:
         
         elif(line[0:5] == "SCENE"):
             curr_scene += 1
+            curr_line = 0
+            curr_stage_dir = 0
+            
             if(curr_scene not in json_text[curr_act]):
                 json_text[curr_act][curr_scene] = {}
                
